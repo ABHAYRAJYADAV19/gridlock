@@ -1,0 +1,47 @@
+Traffic Demand Prediction - Approach Summary
+=============================================
+
+1. PROBLEM
+   - Predict traffic 'demand' (regression) for given locations/times.
+   - Metric: score = max(0, 100 * R2(actual, predicted))
+
+2. FEATURE ENGINEERING
+   - Geohash decoding → latitude, longitude
+   - Geohash prefix grouping (4-char, 5-char) for regional aggregation
+   - Timestamp parsing → hour, minute, day_of_week, is_weekend, is_peak, is_night
+   - Cyclical encoding (sin/cos) for hour, minute, day_of_week
+   - Target-encoded aggregation features (train-only):
+       * Per-geohash mean/median/std/count
+       * Per-geohash_4 and geohash_5 mean/count
+       * Per-hour mean/median/std
+       * Per-day mean/std
+       * Geohash × Hour interaction mean
+       * RoadType × Hour interaction mean
+   - Interaction features: peak×lanes, weekend×peak, night×lanes, etc.
+   - Binary encoding: LargeVehicles, Landmarks
+   - Temperature: squared term, binned categories
+
+3. MISSING VALUE TREATMENT
+   - Numeric columns filled with train median
+   - Categorical columns filled with train mode
+   - All encoders fit on train data only (no data leakage)
+
+4. OUTLIER TREATMENT
+   - IQR-based clipping on the target variable (demand)
+
+5. MODELS USED
+   - LightGBM (n_estimators=3000, lr=0.03, max_depth=7, num_leaves=63)
+   - XGBoost  (n_estimators=3000, lr=0.03, max_depth=6)
+   - CatBoost (iterations=3000, lr=0.03, depth=6)
+   - All with early stopping (patience=50)
+
+6. ENSEMBLE
+   - 5-Fold Cross-Validation for all three models
+   - Weighted ensemble (weights proportional to CV R2 scores)
+   - Compared with simple average; used whichever gave better OOF R2
+
+7. TOOLS & LIBRARIES
+   - Python 3, pandas, numpy, scikit-learn
+   - LightGBM, XGBoost, CatBoost
+   - pygeohash, Optuna (available but not used in final run)
+   - matplotlib, seaborn (for EDA)
